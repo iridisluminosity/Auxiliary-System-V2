@@ -1,0 +1,119 @@
+--////////////////////////////////////////////////////////////
+--// INTEGRITY LINK - WELD METHOD (ESTÁVEL)
+--////////////////////////////////////////////////////////////
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+local Target = getgenv().IntegrityTarget
+
+if not Target then
+    return
+end
+
+local TargetCharacter = Target.Character or Target.CharacterAdded:Wait()
+local TargetHead = TargetCharacter:FindFirstChild("Head")
+
+if not TargetHead then
+    return
+end
+
+--////////////////////////////////////////////////////////////
+--// EFFECTS
+--////////////////////////////////////////////////////////////
+
+local function Notify(Text)
+    pcall(function()
+        game.StarterGui:SetCore(
+            "SendNotification",
+            {
+                Title = "INTEGRITY LINK",
+                Text = Text,
+                Duration = 3
+            }
+        )
+    end)
+end
+
+Notify("LINK ESTABLISHED → " .. Target.Name)
+
+--////////////////////////////////////////////////////////////
+--// TELEPORTE PELO MÉTODO WELD (SEM VOLTAR)
+--////////////////////////////////////////////////////////////
+
+-- Desabilitar tudo que pode atrapalhar
+HumanoidRootPart.CanCollide = false
+Humanoid.PlatformStand = true
+Humanoid.AutoRotate = false
+
+-- Salvar velocidade original e zerar
+local OriginalSpeed = Humanoid.WalkSpeed
+Humanoid.WalkSpeed = 0
+
+-- Congelar o alvo também
+local TargetHumanoid = TargetCharacter:FindFirstChild("Humanoid")
+if TargetHumanoid then
+    TargetHumanoid.PlatformStand = true
+end
+
+-- Criar Weld
+local Weld = Instance.new("Weld")
+Weld.Part0 = HumanoidRootPart
+Weld.Part1 = TargetHead
+Weld.C0 = CFrame.new(0, 0, 0)
+Weld.Parent = HumanoidRootPart
+
+-- Forçar múltiplos frames para garantir
+for i = 1, 5 do
+    HumanoidRootPart.CFrame = TargetHead.CFrame
+    task.wait()
+end
+
+-- Manter o Weld por mais tempo
+task.wait(0.5)
+
+-- Agora sim destruir o Weld
+Weld:Destroy()
+
+-- Forçar posição final novamente
+HumanoidRootPart.CFrame = TargetHead.CFrame
+
+-- Ajustar rotação
+task.wait(0.1)
+HumanoidRootPart.CFrame = CFrame.lookAt(
+    HumanoidRootPart.Position,
+    TargetHead.Position
+)
+
+-- Loop de segurança para manter a posição
+local SafetyConnection
+SafetyConnection = RunService.Heartbeat:Connect(function()
+    if Character and Character.Parent and TargetHead and TargetHead.Parent then
+        if (HumanoidRootPart.Position - TargetHead.Position).Magnitude > 5 then
+            HumanoidRootPart.CFrame = TargetHead.CFrame
+        end
+    else
+        SafetyConnection:Disconnect()
+    end
+end)
+
+-- Reativar tudo depois de 1 segundo
+task.wait(1)
+
+SafetyConnection:Disconnect()
+HumanoidRootPart.CanCollide = true
+Humanoid.PlatformStand = false
+Humanoid.AutoRotate = true
+Humanoid.WalkSpeed = OriginalSpeed
+
+if TargetHumanoid then
+    TargetHumanoid.PlatformStand = false
+end
+
+Notify("TELEPORTED TO → " .. Target.Name .. "'s HEAD")
