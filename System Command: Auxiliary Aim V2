@@ -1,0 +1,154 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local lockedTarget = nil
+local LOCK_KEY = Enum.KeyCode.LeftAlt
+
+local bg = nil
+local disableUntil = 0
+local GRACE_TIME = 0.55  -- só pós-stun (não interfere no Q)
+
+local character, humanoid, rootPart = nil, nil, nil
+
+-- SETUP RESPAWN
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	rootPart = char:WaitForChild("HumanoidRootPart")
+
+	if bg then bg:Destroy() end
+	bg = Instance.new("BodyGyro")
+	bg.Name = "LockGyro"
+	bg.MaxTorque = Vector3.new(0, 0, 0)
+	bg.P = 30000
+	bg.D = 1
+	bg.Parent = rootPart
+
+	lockedTarget = nil
+	humanoid.AutoRotate = true
+	disableUntil = 0
+	print("🔄 Aimlock carregado!")
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+if player.Character then setupCharacter(player.Character) end
+
+-- CONFIGS (ajustadas pra lockar fácil)
+local MAX_WORLD_DISTANCE = 1850
+local AIM_RADIUS_PX = 480   -- aumentei um pouco pra lockar mais fácil
+
+local STUN_NAMES = {"Stun","Stunned","Ragdoll","Ragdolled","Knockback","Staggered","Frozen","Hitstun","Dizzy","CC","IsStunned"}
+
+local function isStunned()
+	for _, name in ipairs(STUN_NAMES) do
+		local val = character:FindFirstChild(name) or humanoid:FindFirstChild(name)
+		if val and ((val:IsA("BoolValue") and val.Value) or ((val:IsA("IntValue") or val:IsA("NumberValue")) and val.Value > 0)) then
+			return true
+		end
+		if character:GetAttribute(name) == true or humanoid:GetAttribute(name) == true then return true end
+	end
+
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if animator then
+		for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+			if track.IsPlaying and track.Name:lower():find("stun") or track.Name:lower():find("ragdoll") then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function isValidTargetModel(model)
+	if not model or not model:IsA("Model") or model == character then return false end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	return hum and hrp and hum.Health > 0
+end
+
+local function chooseTargetByScreenRadius()
+	if not rootPart then return nil end
+	local aim2D = UserInputService:GetMouseLocation()
+	local bestModel, bestScore = nil, math.huge
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and isValidTargetModel(p.Character) then
+			local hrp = p.Character.HumanoidRootPart
+			local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+			if onScreen and (rootPart.Position - hrp.Position).Magnitude <= MAX_WORLD_DISTANCE then
+				local dist = (Vector2.new(screenPos.X, screenPos.Y) - aim2D).Magnitude
+				if dist <= AIM_RADIUS_PX and dist < bestScore then
+					bestScore = dist
+					bestModel = p.Character
+				end
+			end
+		end
+	end
+	return bestModel
+end
+
+-- TOGGLE
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == LOCK_KEY or input.KeyCode == Enum.KeyCode.RightAlt then
+		if lockedTarget then
+			lockedTarget = nil
+			humanoid.AutoRotate = true
+			bg.MaxTorque = Vector3.new(0, 0, 0)
+			print("🔓 Lock Desativado")
+		else
+			local newTarget = chooseTargetByScreenRadius()
+			if newTarget then
+				lockedTarget = newTarget
+				humanoid.AutoRotate = false
+				print("🔒 Lock ATIVADO em: " .. newTarget.Name)
+			else
+				print("❌ Nenhum alvo no crosshair (mire melhor no corpo)")
+			end
+		end
+	end
+end)
+
+-- MAIN LOOP
+RunService.RenderStepped:Connect(function()
+	if not lockedTarget or not bg then
+		if bg then bg.MaxTorque = Vector3.new(0, 0, 0) end
+		return
+	end
+
+	local tRoot = lockedTarget:FindFirstChild("HumanoidRootPart")
+	if not tRoot or lockedTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
+		lockedTarget = nil
+		humanoid.AutoRotate = true
+		bg.MaxTorque = Vector3.new(0, 0, 0)
+		return
+	end
+
+	local state = humanoid:GetState()
+
+	local isUnsafe = isStunned() or 
+	                 state == Enum.HumanoidStateType.Physics or 
+	                 state == Enum.HumanoidStateType.Ragdoll or 
+	                 state == Enum.HumanoidStateType.FallingDown
+
+	if isUnsafe then
+		disableUntil = math.max(disableUntil, tick() + GRACE_TIME)
+	end
+
+	if tick() < disableUntil then
+		bg.MaxTorque = Vector3.new(0, 0, 0)
+		humanoid.AutoRotate = true
+		return
+	end
+
+	-- LOCK ATIVO
+	humanoid.AutoRotate = false
+	bg.MaxTorque = Vector3.new(12000, 420000, 12000)  
+	bg.CFrame = CFrame.lookAt(rootPart.Position, tRoot.Position) 
+end)
+
+print("🚀 Aimlock corrigido - agora pega no cara novamente! Teste LeftAlt mirando o corpo.")
