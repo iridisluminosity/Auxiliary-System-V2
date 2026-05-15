@@ -1,0 +1,71 @@
+--////////////////////////////////////////////////////////////
+--// INTEGRITY LINK
+--// TARGET TELEPORT
+--////////////////////////////////////////////////////////////
+
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local HumanoidRootPart =
+    Character:WaitForChild("HumanoidRootPart")
+
+local Target =
+    getgenv().IntegrityTarget
+
+if not Target then
+    return
+end
+
+local TargetCharacter =
+    Target.Character or Target.CharacterAdded:Wait()
+
+local TargetRoot =
+    TargetCharacter:FindFirstChild("HumanoidRootPart")
+
+if not TargetRoot then
+    return
+end
+
+--////////////////////////////////////////////////////////////
+--// EFFECTS
+--////////////////////////////////////////////////////////////
+
+local function Notify(Text)
+
+    pcall(function()
+
+        game.StarterGui:SetCore(
+            "SendNotification",
+            {
+                Title = "INTEGRITY LINK",
+                Text = Text,
+                Duration = 3
+            }
+        )
+
+    end)
+end
+
+Notify("LINK ESTABLISHED → " .. Target.Name)
+
+--////////////////////////////////////////////////////////////
+--// TELEPORT
+--////////////////////////////////////////////////////////////
+
+HumanoidRootPart.CFrame =
+    TargetRoot.CFrame
+    * CFrame.new(0,0,-3)
+
+--////////////////////////////////////////////////////////////
+--// AUTO FACE TARGET
+--////////////////////////////////////////////////////////////
+
+task.wait(0.1)
+
+HumanoidRootPart.CFrame =
+    CFrame.lookAt(
+        HumanoidRootPart.Position,
+        TargetRoot.Position
+    )
