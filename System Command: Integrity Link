@@ -1,28 +1,25 @@
 --////////////////////////////////////////////////////////////
---// INTEGRITY LINK
---// TARGET TELEPORT
+--// INTEGRITY LINK  
+--// TARGET TELEPORT (MÉTODOS ALTERNATIVOS)
 --////////////////////////////////////////////////////////////
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 
-local HumanoidRootPart =
-    Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
-local Target =
-    getgenv().IntegrityTarget
+local Target = getgenv().IntegrityTarget
 
 if not Target then
     return
 end
 
-local TargetCharacter =
-    Target.Character or Target.CharacterAdded:Wait()
-
-local TargetRoot =
-    TargetCharacter:FindFirstChild("HumanoidRootPart")
+local TargetCharacter = Target.Character or Target.CharacterAdded:Wait()
+local TargetRoot = TargetCharacter:FindFirstChild("HumanoidRootPart")
 
 if not TargetRoot then
     return
@@ -33,9 +30,7 @@ end
 --////////////////////////////////////////////////////////////
 
 local function Notify(Text)
-
     pcall(function()
-
         game.StarterGui:SetCore(
             "SendNotification",
             {
@@ -44,19 +39,28 @@ local function Notify(Text)
                 Duration = 3
             }
         )
-
     end)
 end
 
 Notify("LINK ESTABLISHED → " .. Target.Name)
 
 --////////////////////////////////////////////////////////////
---// TELEPORT
+--// MÉTODO 1: TWEEN SERVICE (TRANSIÇÃO SUAVE)
 --////////////////////////////////////////////////////////////
 
-HumanoidRootPart.CFrame =
-    TargetRoot.CFrame
-    * CFrame.new(0,0,-3)
+local TweenService = game:GetService("TweenService")
+
+local TweenInfo = TweenInfo.new(
+    0.2,  -- Duração
+    Enum.EasingStyle.Linear,
+    Enum.EasingDirection.Out
+)
+
+local NewCFrame = TargetRoot.CFrame * CFrame.new(0, 0, -3)
+local Tween = TweenService:Create(HumanoidRootPart, TweenInfo, {CFrame = NewCFrame})
+Tween:Play()
+
+Tween.Completed:Wait()
 
 --////////////////////////////////////////////////////////////
 --// AUTO FACE TARGET
@@ -64,8 +68,9 @@ HumanoidRootPart.CFrame =
 
 task.wait(0.1)
 
-HumanoidRootPart.CFrame =
-    CFrame.lookAt(
-        HumanoidRootPart.Position,
-        TargetRoot.Position
-    )
+local FaceTween = TweenService:Create(HumanoidRootPart, TweenInfo, {
+    CFrame = CFrame.lookAt(HumanoidRootPart.Position, TargetRoot.Position)
+})
+FaceTween:Play()
+
+Notify("TELEPORT COMPLETE → " .. Target.Name)
