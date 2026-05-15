@@ -1,45 +1,37 @@
 --////////////////////////////////////////////////////////////
---// MÉTODO 2: ALIGN POSITION (FÍSICA)
+--// MÉTODO 3: TELEPORTE POR VELOCIDADE INSTANTÂNEA
 --////////////////////////////////////////////////////////////
 
--- Desabilitar colisões temporariamente
-HumanoidRootPart.CanCollide = false
+-- Salvar posição original
+local OriginalPosition = HumanoidRootPart.Position
 
--- Criar AlignPosition para teleporte suave
-local AlignPosition = Instance.new("AlignPosition")
-local Attachment1 = Instance.new("Attachment")
-local Attachment2 = Instance.new("Attachment")
+-- Desabilitar física temporariamente
+Humanoid.AutoRotate = false
+Humanoid.PlatformStand = true
 
-Attachment1.Parent = HumanoidRootPart
-Attachment2.Parent = TargetRoot
+-- Aplicar velocidade extrema por 1 frame
+local BodyVelocity = Instance.new("BodyVelocity")
+BodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+BodyVelocity.Velocity = (TargetRoot.Position - HumanoidRootPart.Position).Unit * 100000
+BodyVelocity.Parent = HumanoidRootPart
 
-AlignPosition.Attachment1 = Attachment1
-AlignPosition.Attachment2 = Attachment2
-AlignPosition.MaxForce = 1000000
-AlignPosition.MaxVelocity = math.huge
-AlignPosition.Responsiveness = 200
-AlignPosition.ReactionForceEnabled = false
-AlignPosition.Parent = HumanoidRootPart
+-- Esperar 1 frame
+task.wait()
 
--- Criar AlignOrientation para rotação
-local AlignOrientation = Instance.new("AlignOrientation")
-AlignOrientation.Attachment1 = Attachment1
-AlignOrientation.Attachment2 = Attachment2
-AlignOrientation.MaxTorque = 1000000
-AlignOrientation.Responsiveness = 200
-AlignOrientation.Parent = HumanoidRootPart
+-- Parar e ajustar posição
+BodyVelocity:Destroy()
 
-task.wait(0.1)
+-- Teleporte final suave
+local TweenService = game:GetService("TweenService")
+local Tween = TweenService:Create(HumanoidRootPart, TweenInfo.new(0.05), {
+    CFrame = TargetRoot.CFrame * CFrame.new(0, 0, -3)
+})
+Tween:Play()
+Tween.Completed:Wait()
 
--- Limpar
-AlignPosition:Destroy()
-AlignOrientation:Destroy()
-Attachment1:Destroy()
-Attachment2:Destroy()
-HumanoidRootPart.CanCollide = true
-
--- Forçar posição final
-HumanoidRootPart.CFrame = TargetRoot.CFrame * CFrame.new(0, 0, -3)
+-- Reativar física
+Humanoid.AutoRotate = true
+Humanoid.PlatformStand = false
 
 -- Face target
 task.wait(0.1)
