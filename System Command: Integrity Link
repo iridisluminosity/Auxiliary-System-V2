@@ -1,76 +1,48 @@
 --////////////////////////////////////////////////////////////
---// INTEGRITY LINK  
---// TARGET TELEPORT (MÉTODOS ALTERNATIVOS)
+--// MÉTODO 2: ALIGN POSITION (FÍSICA)
 --////////////////////////////////////////////////////////////
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+-- Desabilitar colisões temporariamente
+HumanoidRootPart.CanCollide = false
 
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+-- Criar AlignPosition para teleporte suave
+local AlignPosition = Instance.new("AlignPosition")
+local Attachment1 = Instance.new("Attachment")
+local Attachment2 = Instance.new("Attachment")
 
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+Attachment1.Parent = HumanoidRootPart
+Attachment2.Parent = TargetRoot
 
-local Target = getgenv().IntegrityTarget
+AlignPosition.Attachment1 = Attachment1
+AlignPosition.Attachment2 = Attachment2
+AlignPosition.MaxForce = 1000000
+AlignPosition.MaxVelocity = math.huge
+AlignPosition.Responsiveness = 200
+AlignPosition.ReactionForceEnabled = false
+AlignPosition.Parent = HumanoidRootPart
 
-if not Target then
-    return
-end
-
-local TargetCharacter = Target.Character or Target.CharacterAdded:Wait()
-local TargetRoot = TargetCharacter:FindFirstChild("HumanoidRootPart")
-
-if not TargetRoot then
-    return
-end
-
---////////////////////////////////////////////////////////////
---// EFFECTS
---////////////////////////////////////////////////////////////
-
-local function Notify(Text)
-    pcall(function()
-        game.StarterGui:SetCore(
-            "SendNotification",
-            {
-                Title = "INTEGRITY LINK",
-                Text = Text,
-                Duration = 3
-            }
-        )
-    end)
-end
-
-Notify("LINK ESTABLISHED → " .. Target.Name)
-
---////////////////////////////////////////////////////////////
---// MÉTODO 1: TWEEN SERVICE (TRANSIÇÃO SUAVE)
---////////////////////////////////////////////////////////////
-
-local TweenService = game:GetService("TweenService")
-
-local TweenInfo = TweenInfo.new(
-    0.2,  -- Duração
-    Enum.EasingStyle.Linear,
-    Enum.EasingDirection.Out
-)
-
-local NewCFrame = TargetRoot.CFrame * CFrame.new(0, 0, -3)
-local Tween = TweenService:Create(HumanoidRootPart, TweenInfo, {CFrame = NewCFrame})
-Tween:Play()
-
-Tween.Completed:Wait()
-
---////////////////////////////////////////////////////////////
---// AUTO FACE TARGET
---////////////////////////////////////////////////////////////
+-- Criar AlignOrientation para rotação
+local AlignOrientation = Instance.new("AlignOrientation")
+AlignOrientation.Attachment1 = Attachment1
+AlignOrientation.Attachment2 = Attachment2
+AlignOrientation.MaxTorque = 1000000
+AlignOrientation.Responsiveness = 200
+AlignOrientation.Parent = HumanoidRootPart
 
 task.wait(0.1)
 
-local FaceTween = TweenService:Create(HumanoidRootPart, TweenInfo, {
-    CFrame = CFrame.lookAt(HumanoidRootPart.Position, TargetRoot.Position)
-})
-FaceTween:Play()
+-- Limpar
+AlignPosition:Destroy()
+AlignOrientation:Destroy()
+Attachment1:Destroy()
+Attachment2:Destroy()
+HumanoidRootPart.CanCollide = true
+
+-- Forçar posição final
+HumanoidRootPart.CFrame = TargetRoot.CFrame * CFrame.new(0, 0, -3)
+
+-- Face target
+task.wait(0.1)
+HumanoidRootPart.CFrame = CFrame.lookAt(HumanoidRootPart.Position, TargetRoot.Position)
 
 Notify("TELEPORT COMPLETE → " .. Target.Name)
