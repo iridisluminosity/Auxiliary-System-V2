@@ -1,0 +1,111 @@
+--////////////////////////////////////////////////////////////
+--// INTEGRITY LINK - WELD METHOD (PURIFIED)
+--////////////////////////////////////////////////////////////
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+local Target = getgenv().IntegrityTarget
+
+if not Target then
+    return
+end
+
+local TargetCharacter = Target.Character or Target.CharacterAdded:Wait()
+local TargetHead = TargetCharacter:FindFirstChild("Head")
+
+if not TargetHead then
+    return
+end
+
+--////////////////////////////////////////////////////////////
+--// DESATIVAR TUDO QUE PODE INTERFERIR
+--////////////////////////////////////////////////////////////
+
+-- Salvar estado original
+local originalWalkSpeed = Humanoid.WalkSpeed
+local originalAutoRotate = Humanoid.AutoRotate
+local originalPlatformStand = Humanoid.PlatformStand
+
+-- Desativar tudo
+Humanoid.WalkSpeed = 0
+Humanoid.AutoRotate = false
+Humanoid.PlatformStand = true
+HumanoidRootPart.CanCollide = false
+
+-- Tentar desativar animações/scripts que podem estar puxando de volta
+pcall(function()
+    for _, script in ipairs(Character:GetDescendants()) do
+        if script:IsA("Script") or script:IsA("LocalScript") then
+            if script.Name ~= "Animate" then
+                script.Disabled = true
+            end
+        end
+    end
+end)
+
+--////////////////////////////////////////////////////////////
+--// WELD METHOD (O QUE FUNCIONAVA)
+--////////////////////////////////////////////////////////////
+
+local Weld = Instance.new("Weld")
+Weld.Part0 = HumanoidRootPart
+Weld.Part1 = TargetHead
+Weld.C0 = CFrame.new(0, 0, 0)
+Weld.Parent = HumanoidRootPart
+
+-- Forçar posição por múltiplos frames
+local connection
+local frames = 0
+
+connection = RunService.RenderStepped:Connect(function()
+    frames = frames + 1
+    HumanoidRootPart.CFrame = TargetHead.CFrame
+    
+    if frames >= 10 then
+        connection:Disconnect()
+        
+        task.wait(0.1)
+        Weld:Destroy()
+        
+        task.wait(0.05)
+        HumanoidRootPart.CFrame = CFrame.lookAt(
+            HumanoidRootPart.Position,
+            TargetHead.Position
+        )
+        
+        -- Reativar apenas o essencial
+        task.wait(0.2)
+        HumanoidRootPart.CanCollide = true
+        Humanoid.PlatformStand = false
+        Humanoid.AutoRotate = true
+        
+        -- Reativar scripts
+        pcall(function()
+            for _, script in ipairs(Character:GetDescendants()) do
+                if script:IsA("Script") or script:IsA("LocalScript") then
+                    if script.Name ~= "Animate" and script.Disabled then
+                        script.Disabled = false
+                    end
+                end
+            end
+        end)
+        
+        Humanoid.WalkSpeed = originalWalkSpeed
+    end
+end)
+
+-- Notificação
+pcall(function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "INTEGRITY LINK",
+        Text = "TELEPORTED TO " .. Target.Name,
+        Duration = 3
+    })
+end)
